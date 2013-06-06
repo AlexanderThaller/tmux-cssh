@@ -1,95 +1,96 @@
-#/bin/bash
+#!/usr/bin/env bash
 
-THIS_BASENAME=`basename $0`
-TMUX_SESSION_NAME=$THIS_BASENAME
 HOSTS=""
 USER=""
 CERTIFICATE=""
+THIS_BASENAME="$(basename $0)"
 
 syntax() {
-	echo "Syntax: ${THIS_BASENAME} [-h|-u [user]|-c [path to certificate]|-sc [ssh-server-connect-string]|-ts [session-name]|-q]"
-	echo
+  echo "Syntax: ${THIS_BASENAME} [-h|-u [user]|-c [path to certificate]|-sc [ssh-server-connect-string]|-ts [session-name]|-q]"
+  echo
 
-	echo "-h | --help                                This help."
-	echo
+  echo "-h | --help                                This help."
+  echo
 
-	echo "-u | --user                                User to use."
-	echo
+  echo "-u | --user                                User to use."
+  echo
 
-	echo "-c | --certificate                         Path to ssh-certificate to use."
-	echo
+  echo "-c | --certificate                         Path to ssh-certificate to use."
+  echo
 
-	echo "-sc | --ssh-server-connect-string          SSH-connection-string, multiple."
-	echo
+  echo "-sc | --ssh-server-connect-string          SSH-connection-string, multiple."
+  echo
 
-	echo "-ts | --tmux-session-name                  Alternative tmux-session-name, default: ${THIS_BASENAME}"
-	echo
+  echo "-ts | --tmux-session-name                  Alternative tmux-session-name, default: ${THIS_BASENAME}"
+  echo
 
-	echo "-q | --quiet                               Quiet-mode."
-	echo
+  echo "-q | --quiet                               Quiet-mode."
+  echo
 
-	echo "* Other arguments will be interpreted as '-sc'."
-	echo
+  echo "* Other arguments will be interpreted as '-sc'."
+  echo
 }
 
 while [ $# -gt 0 ]; do
-	case "$1" in
-		-h|--help) syntax; exit;;
-		-u|--user) USER="$2"; shift;;
-		-c|--certificate) CERTIFICATE="$2"; shift;;
-		-sc|--ssh-server-connect-string) HOSTS="${HOSTS} $2"; shift;;
-		-ts|--tmux-session-name) TMUX_SESSION_NAME="$2"; shift;;
-		-q|-quiet) QUIET="true";;
-		*) HOSTS="${HOSTS} $1";;
-	esac
+  case "$1" in
+    -h|--help) syntax; exit;;
+  -u|--user) USER="$2"; shift;;
+-c|--certificate) CERTIFICATE="$2"; shift;;
+    -sc|--ssh-server-connect-string) HOSTS="${HOSTS} $2"; shift;;
+  -ts|--tmux-session-name) THIS_SESSION_NAME="$2"; shift;;
+-q|-quiet) QUIET="true";;
+    *) HOSTS="${HOSTS} $1";;
+  esac
 
-	shift
+  shift
 done
+
+TMUX_SESSION_NAME=${THIS_SESSION_NAME:-"$(basename $(pwd))-$(date +%s)"}
 
 # Hosts available ?
 if [ "${HOSTS}" == "" ]; then
-	echo "* Hosts not given."
-	echo
+  echo "* Hosts not given."
+  echo
 
-	syntax
+  syntax
 
-	exit
+  exit
 fi
 
 initTmuxCall="true"
 
 # Walk through hosts
 for host in `echo ${HOSTS}`; do
-	connectString="${host}"
+  connectString="${host}"
 
-	# Add user-part
-	if [ "${USER}" != "" ]; then
-		connectString="${USER}@${connectString}"
-	fi
+  # Add user-part
+  if [ "${USER}" != "" ]; then
+    connectString="${USER}@${connectString}"
+  fi
 
-	# Add certificate-part
-	if [ "${CERTIFICATE}" != "" ]; then
-		connectString="-i ${CERTIFICATE} ${connectString}"
-	fi
+  # Add certificate-part
+  if [ "${CERTIFICATE}" != "" ]; then
+    connectString="-i ${CERTIFICATE} ${connectString}"
+  fi
 
-	# Finalize connect-string
-	connectString="ssh ${connectString}"
+  # Finalize connect-string
+  connectString="ssh ${connectString}"
 
-	# Output
-	if [ "${QUIET}" != "true" ]; then
-		echo ${connectString}
-	fi
+  # Output
+  if [ "${QUIET}" != "true" ]; then
+    echo ${connectString}
+  fi
 
-	# First Call, inits the tmux-session
-	if [ "${initTmuxCall}" == "true" ]; then
-		tmux new-session -d -s ${TMUX_SESSION_NAME} "${connectString}"
+  # First Call, inits the tmux-session
+  if [ "${initTmuxCall}" == "true" ]; then
+    tmux new-session -d -s ${TMUX_SESSION_NAME} "${connectString}"
 
-		initTmuxCall="false"
-	# Attach zu tmux-session
-	else
-		tmux split-window -t ${TMUX_SESSION_NAME} "${connectString}"
-		tmux select-layout -t ${TMUX_SESSION_NAME} tiled
-	fi
+    initTmuxCall="false"
+    # Attach zu tmux-session
+  else
+    tmux split-window -t ${TMUX_SESSION_NAME} "${connectString}"
+    tmux select-layout -t ${TMUX_SESSION_NAME} tiled
+  fi
 
 done
 
